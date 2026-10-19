@@ -1,47 +1,99 @@
-# Protocolo experimental para relación EMG - Ángulo de rodilla - Termografía
-# Actividad terapéutica: Sentadilla
+# protocol_squat.yaml: protocolo experimental y parámetros de análisis
 
 protocol:
-  name: "Sentadilla_EMG_Termo"
-  exercise: "Sentadilla (Squat)"
-  target_depth_deg: 90 # Flexión objetivo
+  name: "sentadilla_peso_corporal"
+  squat:
+    target_depth_deg: 90        # flexión de rodilla objetivo
+    cadence_s: {down: 3, up: 3} # con metrónomo
+    series: 3
+    reps_per_series: 10
+    rest_between_series_s: 30   # pausa en la que se toma el termograma DURANTE (<= 30 s de captura)
+  baseline:
+    rest_s: 10                  # reposo EMG antes de empezar
+  acclimatization_min: 15       # antes del termograma ANTES
 
-mocap_sync:
-  # Eventos biomecánicos para alinear el ángulo de las cámaras Bonita con el EMG
-  initial_event: "3 flexo-extensiones rapidas de rodilla (inicio)"
-  final_event: "3 flexo-extensiones rapidas de rodilla (fin)"
+sync_events:
+  # Eventos para alinear EMG y Vicon (correlación cruzada) y estimar deriva
+  start:
+    description: "3 flexo-extensiones rápidas de rodilla, de pie"
+    count: 3
+  end:
+    description: "3 flexo-extensiones rápidas de rodilla, de pie"
+    count: 3
 
-series_config:
-  count: 3
-  reps_per_serie: 10
-  cadence:
-    metronome_active: true
-    descent_s: 3 # Tiempo de bajada
-    ascent_s: 3  # Tiempo de subida
-  pause_between_series_s: 30 # Pausa para permitir las capturas térmicas DURANTE
+thermography:
+  moments:
+    - {id: "T0",   phase: "ANTES",   trigger: "before_electrodes"}
+    - {id: "T1",   phase: "DURANTE", trigger: "after_series", series: 1, max_delay_s: 30}
+    - {id: "T2",   phase: "DURANTE", trigger: "after_series", series: 2, max_delay_s: 30}
+    - {id: "T3a",  phase: "DESPUES", trigger: "after_end", delay_min: 0,  max_delay_s: 120}
+    - {id: "T3b",  phase: "DESPUES", trigger: "after_end", delay_min: 5}
+    - {id: "T3c",  phase: "DESPUES", trigger: "after_end", delay_min: 10}
+  views: ["ANT", "LAT", "POS"]  # anterior, lateral, posterior
+  views_by_moment:              # en las pausas cortas se captura solo la vista principal
+    T0:  ["ANT", "LAT", "POS"]
+    T1:  ["ANT"]
+    T2:  ["ANT"]
+    T3a: ["ANT", "LAT", "POS"]
+    T3b: ["ANT"]
+    T3c: ["ANT"]
+  naming: "{subject}_{moment}_{label}_{view}"   # p. ej. S01_T1_DUR_S1_ANT
 
-thermal_captures:
-  # Momentos de captura térmica (Fotric H6)
-  pre_exercise:
-    - id: "T0_PRE"
-      description: "Línea base, sin electrodos, sin gel, sin marcadores Bonita"
-  
-  during_exercise:
-    - id: "T1_DUR_S1"
-      description: "Pausa inmediatamente después de la Serie 1 (sujeto de pie)"
-    - id: "T2_DUR_S2"
-      description: "Pausa inmediatamente después de la Serie 2 (sujeto de pie)"
-      
-  post_exercise:
-    - id: "T3a_POST_0"
-      description: "Inmediatamente después de la Serie 3 y desarmar el EMG/MoCap"
-    - id: "T3b_POST_5"
-      description: "5 minutos después de finalizar"
-    - id: "T3c_POST_10"
-      description: "10 minutos después de finalizar"
+emg_processing:
+  bandpass_hz: [20, 450]
+  bandpass_order: 4
+  notch_hz: 60                  # red eléctrica de México
+  notch_q: 30
+  envelope:
+    method: "rms"
+    window_ms: 150
+  quality:
+    min_snr: null               # TODO: definir tras el piloto
+    saturation_max_pct: 0.1
+    max_lost_packets_pct: 0.5
 
-thermal_views:
-  # Vistas a capturar por cada momento
-  - "Anterior (ANT)"
-  - "Lateral (LAT)"
-  - "Posterior (POS)"
+normalization:
+  method: "mean_of_peaks"       # promedio de los picos de las repeticiones válidas
+  per: ["subject", "muscle"]
+  scope: "all_series"           # referencia calculada sobre todas las series
+  peak_source: "envelope"       # pico de la envolvente RMS de cada repetición
+  exclude_artifact_reps: true
+  artifact_rule:
+    # Una repetición se excluye si su pico supera X veces la mediana de los picos
+    peak_over_median_max: 2.5
+  min_valid_reps: 5             # por músculo; con menos repeticiones válidas la sesión se marca para revisión
+  reference_value: "mean(peak_i)"   # EMG_norm(%) = envolvente / referencia * 100
+  report_unnormalized_rms_uv: true
+
+segmentation:
+  angle_source: "vicon"
+  min_flexion_prominence_deg: 30
+  min_rep_distance_s: 3
+  phase_rule: "descent: dtheta/dt > 0 ; ascent: dtheta/dt < 0"
+  angle_bins_deg: 10
+  cycle_resample_points: 101
+
+features:
+  time_domain: ["rms", "mav", "iemg", "peak", "time_to_peak", "onset"]
+  onset_rule: "rest_mean + 3*rest_sd"
+  frequency_domain: ["mnf", "mdf"]
+  welch: {window_s: 0.25, overlap: 0.5}
+  coordination: ["ratio_vl_bf", "cci"]
+  per_series: true
+
+alignment:
+  method: "cross_correlation"
+  signal_emg: "envelope_vl_bf"
+  signal_vicon: "abs_knee_angular_velocity"
+  use_start_and_end_events: true   # corrige desfase y deriva lineal
+  max_lag_s: 5
+
+statistics:
+  correlation: "spearman"
+  alpha: 0.05
+  note: "Con pocos sujetos el análisis es descriptivo/exploratorio"
+
+subjects:
+  n_target: null                # por definir
+  inclusion: ["adultos sanos", "sin lesión ni cirugía de rodilla reciente", "sin dolor al realizar sentadilla"]
+  record: ["edad", "sexo", "peso", "estatura", "pierna dominante", "actividad física habitual"]

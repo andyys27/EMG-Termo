@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "emgthermo"
+version = "0.1.0"
+description = "Adquisición EMG + Vicon + termografía Fotric durante sentadilla"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "pandas>=2.1",
+    "pyyaml>=6.0",
+    "zeroconf>=0.131",
+    "pyserial>=3.5",
+    "pyqtgraph>=0.13",
+    "PyQt6>=6.6",
+    "matplotlib>=3.8",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.4"]
+
+[project.scripts]
+emgthermo-launch = "emgthermo.launcher.run_session:cli"
+
+[tool.setuptools.packages.find]
+where = ["host"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["host"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

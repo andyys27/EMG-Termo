@@ -1,46 +1,106 @@
-# Configuración del hardware y enlaces de comunicación
+# devices.yaml: configuración de los tres dispositivos y de la red
+# Valores en null o marcados con TODO: confirmar con el laboratorio/manuales.
 
+network:
+  hotspot_band: "2.4GHz"        # el ESP32-S3 NO soporta 5 GHz
+  pc_ip: null                   # se detecta al conectar; en hotspot de Windows suele ser 192.168.137.1 (verificar)
+
+# Nodo EMG (ESP32-S3 SuperMini + ADS131M04, 2 canales)
 emg_node:
-  # Comunicación Wi-Fi Hotspot
-  ip_address: "192.168.137.2" # IP fija del ESP32-S3 en el hotspot o dejar vacío si usa mDNS
-  mdns_name: "emg.local"
-  tcp_cmd_port: 5000
-  udp_data_port: 5001
-  
-  # Hardware y Muestreo
-  adc_type: "ADS131M04"
-  sampling_rate_hz: 2000
-  resolution_bits: 24        # El ADS131M04 es un ADC Delta-Sigma de 24 bits
-  vref_mv: 1200              # Referencia interna del ADS131
-  pga_gain: 1                # Ganancia del Programmable Gain Amplifier del ADS131
-  
-  # Canales (Se definen 2 por defecto, con espacio para 1 extra si se requiere)
-  active_channels: 2
+  enabled: true
+  device_id: 1
+  host: "emg.local"             # mDNS o IP del nodo en el hotspot
+  tcp_port: 5000                # control (comandos de texto, una línea por comando)
+  udp_port: 5001                # puerto de la PC donde llegan las tramas de datos
+  protocol_version: 2           # muestras int32 (24 bit con signo); debe coincidir con firmware/include/protocol.h
+  fs_hz: 2000                   # = CLKIN 8.192 MHz / (2 * OSR 2048); debe coincidir con config.h
+  block_samples: 10             # muestras por canal por paquete (10 = 5 ms a 2 kHz); debe coincidir con config.h
+  adc:
+    model: "ADS131M04"
+    interface: "SPI modo 1"
+    resolution_bits: 24
+    vref_v: 1.2                 # referencia interna
+    pga_gain: 1                 # ganancia del PGA del ADC (la ganancia fuerte va en el front-end analógico)
+    osr: 2048
+    clkin_hz: 8192000
+    clkin_source: "ledc"        # "ledc" (lo genera el ESP32-S3) | "external" (oscilador de 8.192 MHz)
+    # Escala completa = +-(vref_v / pga_gain). LSB en el pin del ADC = vref_v / pga_gain / 2^23
+    lsb_uv_at_adc: 0.1431       # = 1.2e6 / 2^23 / pga_gain  (µV por cuenta, antes de dividir entre la ganancia analógica)
+    saturation_abs_counts: 8300000
   channels:
-    ch1:
-      muscle: "vasto lateral (VL)"
-      enabled: true
-    ch2:
-      muscle: "biceps femoral (BF)"
-      enabled: true
-    ch3:
-      muscle: "vasto medial (VM)"
-      enabled: false
+    - {id: 1, name: "VL", muscle: "Vasto lateral",   side: "D", ads_channel: 0}
+    - {id: 2, name: "BF", muscle: "Bíceps femoral",  side: "D", ads_channel: 1}
+  analog_frontend:
+    gain_nominal: 400           # PENDIENTE: V/V, punto de partida; debe dejar la señal dentro de +-1.2 V/pga_gain en el ADC
+    highpass_hz: 20
+    lowpass_hz: 450
+    bias_note: "Verificar en el datasheet del ADS131M04 el rango de entrada diferencial y el modo común admitido"
+  calibration:
+    # uV_en_entrada = cuentas * lsb_uv_at_adc / gain_real
+    # gain_real se mide con generador de funciones (Fase 10); mientras tanto se usa gain_nominal.
+    gain_real_ch1: null
+    gain_real_ch2: null
+  checks:                       # umbrales del autodiagnóstico en CHECK/ARM
+    max_rest_noise_uv_in: null  # TODO: definir tras la prueba de ruido (entradas en corto) en bring-up
+    min_battery_v: 3.6
+    max_lost_packets_pct: 0.5
+  clock_sync:
+    pings: 40                   # intercambios PING/PONG; se usa el de menor RTT
 
-mocap_system:
-  # Cámaras IR tipo Bonita 
-  type: "Bonita_IR"
-  mode: "assisted" # El launcher asiste al operador mediante prompts y registra tiempos
-  sync_method: "hardware_trigger_plus_event" # Evento de 3 flexiones + posible pulso desde ESP32 a la caja de sincronía
-  expected_framerate_hz: 100
-  export_format: "csv"
-  export_path_template: "data/{subject}_{date}/mocap/raw/"
+# Sistema de captura de movimiento Vicon (cámaras IR tipo Bonita + Nexus)
+vicon:
+  enabled: true
+  mode: "manual"                # "manual" (prompts al operador) | "udp" (inicio/paro por red desde el launcher)
+  nexus:
+    # Nexus: Capture Tools > Auto Capture Setup > Start/Stop over Network (modo Receive para que el launcher lo controle).
+    host: null                  # IP de la PC con Nexus (o broadcast); depende de la topología de red del laboratorio
+    udp_port: 30                # puerto por defecto en la documentación de Vicon; confirmar el configurado en Nexus
+    # Formato según la documentación de Vicon ("UDP capture broadcast/trigger", descrita para Shogun; Nexus ofrece
+    # "Start/Stop over network"): XML terminado en nulo, debe caber en un solo paquete UDP. VERIFICAR en su versión de Nexus.
+    packet_start: '<?xml version="1.0" encoding="UTF-8" standalone="no"?><CaptureStart><Name VALUE="{take}"/><DatabasePath VALUE="{database_path}"/><PacketID VALUE="{packet_id}"/></CaptureStart>'
+    packet_stop:  '<?xml version="1.0" encoding="UTF-8" standalone="no"?><CaptureStop><Name VALUE="{take}"/><DatabasePath VALUE="{database_path}"/><PacketID VALUE="{packet_id}"/></CaptureStop>'
+    database_path: null         # carpeta de capturas en la PC de Nexus
+    note: "Las cámaras Bonita se sincronizan/conectan con dispositivos externos (EMG analógico, trigger) mediante Vicon Lock+ (ver hardware_trigger)."
+    listen_broadcast: false     # true: escuchar el UDP que Nexus emite al iniciar/parar (Send) para registrar la hora
+  hardware_trigger:
+    enabled: false              # pulso TTL desde el ESP32 hacia la entrada de trigger del sistema Vicon
+    note: "Solo con aislamiento (optoacoplador). Verificar con el técnico del laboratorio la conexión (Lock/Giganet)."
+  export:
+    format: "csv"               # "csv" | "c3d"
+    directory: null             # carpeta de exportación de Nexus (para verificar archivos)
+    sample_rate_hz: null        # TODO: frecuencia de captura configurada en Nexus (p. ej. 100 o 200 Hz)
+    units_length: "mm"
+  knee_angle:
+    side: "D"                   # lado medido
+    markers:                    # nombres de los marcadores TAL COMO están etiquetados en Nexus
+      hip: "RTRO"               # trocánter mayor
+      knee: "RKNE"              # epicóndilo femoral lateral
+      ankle: "RANK"             # maléolo lateral
+    method: "markers_3d"        # ángulo entre vectores rodilla→cadera y rodilla→tobillo
+    flexion_formula: "180 - angulo_interno"   # 0° = extensión completa
+    low_pass_hz: 6              # filtro para derivar velocidad angular
+  marker_note: "Evitar marcadores sobre el vientre de VL y BF (zonas de ROI térmico y electrodos)."
 
-thermal_camera:
-  # Dispositivo de termografía
-  model: "Fotric_H6"
-  software: "AnalyzIR"
-  mode: "manual" # Requiere disparar manualmente, el launcher registra la hora PC
-  export_format_data: "csv" # Single Frame Data
-  export_format_image: "jpg" # Single Frame Image
-  export_path_template: "data/{subject}_{date}/thermal/raw/"
+# Cámara termográfica Fotric
+camera:
+  enabled: true
+  model: "Fotric H6"
+  mode: "manual"                # "manual" | "sdk" (solo si Fotric ofrece SDK para el H6; sin confirmar)
+  software: "Fotric AnalyzIR"
+  emissivity: 0.98              # piel; confirmar en el manual del H6
+  fixed_params:                 # se anotan por sesión y deben ser iguales en todas las capturas
+    distance_m: null
+    palette: null
+    temperature_range_c: null
+  exports_per_capture:
+    single_frame_image: true    # archivo maestro radiométrico
+    single_frame_data_csv: true # matriz de temperaturas para Python
+    bpm_non_radiometric: false  # NO sirve para análisis
+    report: false
+  expected_files_per_capture: 2 # imagen + csv
+
+# Rutas
+paths:
+  data_root: "data"
+  session_dir_pattern: "{subject}_{date}"
+  rois_file: "config/thermal_rois.json"

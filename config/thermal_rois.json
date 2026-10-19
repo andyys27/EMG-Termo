@@ -1,34 +1,33 @@
 {
-  "project": "EMG_Termografia_Sentadilla",
-  "rois": [
-    {
-      "id": "roi_vl",
-      "name": "Vasto Lateral",
-      "view": "Lateral",
-      "notes": "Dibujar el polígono ADYACENTE a los electrodos, evitando el área con gel o marcadores IR."
+  "_comment": "PLANTILLA. Las coordenadas son normalizadas (0-1, origen arriba a la izquierda) y son marcadores de posición: se redefinen sobre la imagen real del Fotric H6 (anclando a marcas anatómicas) y se verifican en el piloto. ROIs de rol 'control' = zona no trabajada / pierna contralateral.",
+  "coordinates": "normalized",
+  "image_size_px": null,
+  "marker_exclusion": {
+    "_comment": "Los marcadores reflectantes del sistema Vicon (y sus cintas) se excluyen del ROI para no sesgar la temperatura.",
+    "radius_px": 6
+  },
+  "views": {
+    "ANT": {
+      "rois": [
+        {"name": "VL_D",      "side": "D", "role": "trabajada", "polygon": [[0.20,0.35],[0.35,0.35],[0.35,0.60],[0.20,0.60]]},
+        {"name": "VL_I",      "side": "I", "role": "control",   "polygon": [[0.65,0.35],[0.80,0.35],[0.80,0.60],[0.65,0.60]]},
+        {"name": "RODILLA_D", "side": "D", "role": "trabajada", "polygon": [[0.20,0.62],[0.35,0.62],[0.35,0.75],[0.20,0.75]]},
+        {"name": "RODILLA_I", "side": "I", "role": "control",   "polygon": [[0.65,0.62],[0.80,0.62],[0.80,0.75],[0.65,0.75]]}
+      ]
     },
-    {
-      "id": "roi_bf",
-      "name": "Biceps Femoral",
-      "view": "Posterior",
-      "notes": "Dibujar el polígono evitando electrodos y marcadores de captura de movimiento."
+    "LAT": {
+      "rois": [
+        {"name": "VL_D", "side": "D", "role": "trabajada", "polygon": [[0.30,0.30],[0.50,0.30],[0.50,0.58],[0.30,0.58]]},
+        {"name": "BF_D", "side": "D", "role": "trabajada", "polygon": [[0.50,0.30],[0.70,0.30],[0.70,0.58],[0.50,0.58]]}
+      ]
     },
-    {
-      "id": "roi_knee_ant",
-      "name": "Rodilla Perirrotuliana",
-      "view": "Anterior",
-      "notes": "Zona global de la rodilla para evaluar cambio térmico de la articulación."
-    },
-    {
-      "id": "roi_control_contra",
-      "name": "Pierna Control",
-      "view": "Todas",
-      "notes": "Pierna no trabajada (o zona alejada del muslo) para restar el cambio de temperatura sistémico al delta final."
+    "POS": {
+      "rois": [
+        {"name": "BF_D", "side": "D", "role": "trabajada", "polygon": [[0.20,0.35],[0.35,0.35],[0.35,0.60],[0.20,0.60]]},
+        {"name": "BF_I", "side": "I", "role": "control",   "polygon": [[0.65,0.35],[0.80,0.35],[0.80,0.60],[0.65,0.60]]}
+      ]
     }
-  ],
-  "camera_params": {
-    "emissivity_skin": 0.98,
-    "distance_m": 1.5,
-    "comments": "Mantener T_amb, humedad y T_reflejada constantes en AnalyzIR para todas las capturas (T0 a T3c)."
-  }
+  },
+  "metrics": ["mean", "max", "min", "std"],
+  "delta_reference": "T0"
 }

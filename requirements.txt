@@ -1,8 +1,19 @@
-numpy
-scipy
-pandas
-pyqtgraph
-pyQt6
-pyyaml
-matplotlib
-pytest
+# Núcleo
+numpy>=1.26
+scipy>=1.11
+pandas>=2.1
+pyyaml>=6.0
+
+# Comunicación
+zeroconf>=0.131        # descubrimiento mDNS (emg.local)
+pyserial>=3.5          # bring-up del firmware por USB
+
+# Tiempo real (solo monitoreo mínimo)
+pyqtgraph>=0.13
+PyQt6>=6.6
+
+# Análisis y figuras
+matplotlib>=3.8
+
+# Pruebas
+pytest>=8.0
