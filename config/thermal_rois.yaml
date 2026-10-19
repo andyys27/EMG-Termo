@@ -1,0 +1,34 @@
+{
+  "project": "EMG_Termografia_Sentadilla",
+  "rois": [
+    {
+      "id": "roi_vl",
+      "name": "Vasto Lateral",
+      "view": "Lateral",
+      "notes": "Dibujar el polígono ADYACENTE a los electrodos, evitando el área con gel o marcadores IR."
+    },
+    {
+      "id": "roi_bf",
+      "name": "Biceps Femoral",
+      "view": "Posterior",
+      "notes": "Dibujar el polígono evitando electrodos y marcadores de captura de movimiento."
+    },
+    {
+      "id": "roi_knee_ant",
+      "name": "Rodilla Perirrotuliana",
+      "view": "Anterior",
+      "notes": "Zona global de la rodilla para evaluar cambio térmico de la articulación."
+    },
+    {
+      "id": "roi_control_contra",
+      "name": "Pierna Control",
+      "view": "Todas",
+      "notes": "Pierna no trabajada (o zona alejada del muslo) para restar el cambio de temperatura sistémico al delta final."
+    }
+  ],
+  "camera_params": {
+    "emissivity_skin": 0.98,
+    "distance_m": 1.5,
+    "comments": "Mantener T_amb, humedad y T_reflejada constantes en AnalyzIR para todas las capturas (T0 a T3c)."
+  }
+}

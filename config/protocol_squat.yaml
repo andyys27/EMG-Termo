@@ -1,0 +1,47 @@
+# Protocolo experimental para relación EMG - Ángulo de rodilla - Termografía
+# Actividad terapéutica: Sentadilla
+
+protocol:
+  name: "Sentadilla_EMG_Termo"
+  exercise: "Sentadilla (Squat)"
+  target_depth_deg: 90 # Flexión objetivo
+
+mocap_sync:
+  # Eventos biomecánicos para alinear el ángulo de las cámaras Bonita con el EMG
+  initial_event: "3 flexo-extensiones rapidas de rodilla (inicio)"
+  final_event: "3 flexo-extensiones rapidas de rodilla (fin)"
+
+series_config:
+  count: 3
+  reps_per_serie: 10
+  cadence:
+    metronome_active: true
+    descent_s: 3 # Tiempo de bajada
+    ascent_s: 3  # Tiempo de subida
+  pause_between_series_s: 30 # Pausa para permitir las capturas térmicas DURANTE
+
+thermal_captures:
+  # Momentos de captura térmica (Fotric H6)
+  pre_exercise:
+    - id: "T0_PRE"
+      description: "Línea base, sin electrodos, sin gel, sin marcadores Bonita"
+  
+  during_exercise:
+    - id: "T1_DUR_S1"
+      description: "Pausa inmediatamente después de la Serie 1 (sujeto de pie)"
+    - id: "T2_DUR_S2"
+      description: "Pausa inmediatamente después de la Serie 2 (sujeto de pie)"
+      
+  post_exercise:
+    - id: "T3a_POST_0"
+      description: "Inmediatamente después de la Serie 3 y desarmar el EMG/MoCap"
+    - id: "T3b_POST_5"
+      description: "5 minutos después de finalizar"
+    - id: "T3c_POST_10"
+      description: "10 minutos después de finalizar"
+
+thermal_views:
+  # Vistas a capturar por cada momento
+  - "Anterior (ANT)"
+  - "Lateral (LAT)"
+  - "Posterior (POS)"

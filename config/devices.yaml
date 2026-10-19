@@ -1,0 +1,46 @@
+# Configuración del hardware y enlaces de comunicación
+
+emg_node:
+  # Comunicación Wi-Fi Hotspot
+  ip_address: "192.168.137.2" # IP fija del ESP32-S3 en el hotspot o dejar vacío si usa mDNS
+  mdns_name: "emg.local"
+  tcp_cmd_port: 5000
+  udp_data_port: 5001
+  
+  # Hardware y Muestreo
+  adc_type: "ADS131M04"
+  sampling_rate_hz: 2000
+  resolution_bits: 24        # El ADS131M04 es un ADC Delta-Sigma de 24 bits
+  vref_mv: 1200              # Referencia interna del ADS131
+  pga_gain: 1                # Ganancia del Programmable Gain Amplifier del ADS131
+  
+  # Canales (Se definen 2 por defecto, con espacio para 1 extra si se requiere)
+  active_channels: 2
+  channels:
+    ch1:
+      muscle: "vasto lateral (VL)"
+      enabled: true
+    ch2:
+      muscle: "biceps femoral (BF)"
+      enabled: true
+    ch3:
+      muscle: "vasto medial (VM)"
+      enabled: false
+
+mocap_system:
+  # Cámaras IR tipo Bonita 
+  type: "Bonita_IR"
+  mode: "assisted" # El launcher asiste al operador mediante prompts y registra tiempos
+  sync_method: "hardware_trigger_plus_event" # Evento de 3 flexiones + posible pulso desde ESP32 a la caja de sincronía
+  expected_framerate_hz: 100
+  export_format: "csv"
+  export_path_template: "data/{subject}_{date}/mocap/raw/"
+
+thermal_camera:
+  # Dispositivo de termografía
+  model: "Fotric_H6"
+  software: "AnalyzIR"
+  mode: "manual" # Requiere disparar manualmente, el launcher registra la hora PC
+  export_format_data: "csv" # Single Frame Data
+  export_format_image: "jpg" # Single Frame Image
+  export_path_template: "data/{subject}_{date}/thermal/raw/"

@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"name": "emg_node",
+			"path": "."
+		}
+	],
+	"settings": {}
+}
