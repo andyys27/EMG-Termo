@@ -1,0 +1,8 @@
+numpy
+scipy
+pandas
+pyqtgraph
+pyQt6
+pyyaml
+matplotlib
+pytest
