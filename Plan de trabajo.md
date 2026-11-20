@@ -118,19 +118,87 @@ Un solo repositorio, con una carpeta por capa del sistema. Cada carpeta se comun
 
 ```
 emg-thermo-squat/
-├── README.md, pyproject.toml, .gitignore
-├── config/        parámetros del protocolo, de los equipos y de calidad
-├── docs/          protocolo, ajustes, guía de video, consentimiento, decisiones
-├── hardware/      procedimiento de mediciones del circuito y sus resultados
-├── firmware/emg_node/   código de la ESP32-S3 (PlatformIO)
-├── host/emgthermo/      paquete Python: adquisición, calidad, procesamiento, herramientas
-│   ├── core/  launcher/  validation/  realtime/  hardware/  tools/
-│   └── processing/{emg, kinematics, sync, thermal}
-├── analysis/      scripts que se ejecutan de principio a fin sobre una sesión
-├── tests/         pruebas automáticas (27 hoy)
-├── data/          datos crudos de las sesiones (local, fuera de Git)
-├── results/       figuras y tablas finales
-└── cloud/ y web/  dashboard público (opcional)
+├── README.md                       Qué es el proyecto y cómo correrlo
+├── pyproject.toml                  Dependencias y paquete Python (pip install -e .)
+├── .gitignore                      Excluye data/, secrets.h y archivos temporales
+│
+├── config/                         Parámetros editables sin tocar código
+│   ├── protocol_squat.yaml         Protocolo: series, repeticiones, metrónomo, fases, normalización
+│   ├── devices.yaml                Equipos: ganancia, v_per_count, fs, pines, IP del nodo
+│   ├── quality_thresholds.yaml     Umbrales de calidad (pérdida, huecos, saturación, ruido, 60 Hz)
+│   └── thermal_rois.json           [por escribir] ROI térmicas (VL, BF, rodilla, control) por vista
+│
+├── docs/                           Documentación del proyecto
+│   ├── fase0_ajustes_al_protocolo.md   Cambios propuestos al protocolo de BI2005
+│   ├── guia_grabacion_video.md     Cómo grabar el video (120 fps, encuadre, ropa, luz)
+│   ├── consentimiento_informado.md Formato de consentimiento y alcance de publicación
+│   └── decisiones_arquitectura.md  Registro de decisiones y su estado
+│
+├── hardware/                       Circuito analógico
+│   ├── fase1_procedimiento_mediciones.md  Las 8 pruebas de la Fase 1 paso a paso
+│   ├── notes_calibration.md        [por escribir] Resultados: v_per_count, ganancia, ruido
+│   └── measurements/               [por crear] CSV y capturas de cada medición
+│
+├── firmware/emg_node/              Código de la ESP32-S3 (PlatformIO + pioarduino)
+│   ├── platformio.ini              Plataforma, placa, opciones de compilación y monitor
+│   ├── include/
+│   │   ├── config.h                Pines, FS_HZ, N_CH, OS_FACTOR, puertos, USE_SYNC_PULSE
+│   │   ├── protocol.h              Trama (cabecera 20 B, CRC16), banderas, comandos
+│   │   ├── validator.h             Decide banderas: SAT, FLAT, DC_OOR, BATT_LOW, LINE (Goertzel)
+│   │   ├── adc_continuous_s3.h     ADC1 continuo con DMA; entrega la suma de 8 conversiones
+│   │   └── secrets.h.example       Plantilla de Wi-Fi (copiar a secrets.h; no se sube a Git)
+│   ├── src/main.cpp                Wi-Fi, servidor TCP, bucle ADC → tramas de 20 muestras → UDP
+│   └── test/test_validator_host.cpp  Prueba del validador en la PC, sin placa
+│
+├── host/emgthermo/                 Paquete Python
+│   ├── core/
+│   │   ├── protocol.py             Decodifica tramas y verifica CRC (par de protocol.h)
+│   │   ├── clock_sync.py           Desfase y deriva nodo–PC con PING/PONG
+│   │   ├── session.py              Carpeta de sesión, events.csv y session.json
+│   │   └── recorder.py             Recibe UDP, detecta pérdidas por seq, escribe emg_raw/frames.csv
+│   ├── launcher/run_session.py     Flujo del operador: conectar, sincronizar, ARM, grabar, marcar eventos
+│   ├── validation/qc.py            Informe de calidad de una sesión
+│   ├── realtime/live_plot.py       Gráfica en vivo (solo verificación visual)
+│   ├── hardware/circuit_model.py   Modelo del circuito: cuentas ↔ µV, respuesta en frecuencia
+│   ├── processing/
+│   │   ├── emg/
+│   │   │   ├── filters.py          Pasa-banda fase cero, RMS por ventanas, envolvente
+│   │   │   ├── normalization.py    Referencia mean_valid_peaks o max_rms; % del pico
+│   │   │   ├── features.py         RMS máx/medio, MDF (Welch), latencia de inicio
+│   │   │   └── segmentation.py     Repeticiones y 3 fases (ángulo > metrónomo > picos EMG)
+│   │   ├── kinematics/
+│   │   │   ├── knee_angle.py       Ángulo de rodilla en píxeles, suavizado, velocidad angular
+│   │   │   └── angle_io.py         Lee/escribe el CSV de ángulo y su .quality.json
+│   │   ├── sync/align.py           Alinea video y EMG con SYNC_MOVE (correlación cruzada)
+│   │   └── thermal/
+│   │       ├── loader.py           [por escribir] Lee la exportación de la H6
+│   │       └── roi.py              [por escribir] Estadísticos por ROI y ΔT
+│   └── tools/
+│       ├── simulate_device.py      Nodo falso para probar sin hardware
+│       ├── import_external_csv.py  Convierte CSV de Biopac/osciloscopio al formato de sesión (plan B)
+│       ├── phase1_characterize.py  Ruido, barrido en frecuencia y calibración del ADC (Fase 1)
+│       ├── video_pose.py           MediaPipe: video → CSV de ángulo + video de depuración
+│       └── capture_raw.py          [por escribir] Captura corta cruda del nodo para la Fase 1
+│
+├── analysis/                       Scripts de principio a fin sobre una sesión
+│   ├── run_emg_pipeline.py         EMG + ángulo → processed/ (tablas y figuras)
+│   ├── run_thermal_analysis.py     [por escribir] Termografía: ROI, ΔT y figura
+│   └── make_report.py              [por escribir] Tablas y figuras finales del informe
+│
+├── tests/                          Pruebas automáticas (27 hoy)
+│   ├── test_protocol.py            Tramas, CRC y banderas
+│   ├── test_phase1.py              Herramientas de caracterización de la Fase 1
+│   ├── test_processing.py          Filtros, normalización, características, segmentación
+│   ├── test_knee_angle.py          Ángulo y sincronía video–EMG (datos sintéticos)
+│   ├── test_end_to_end_sim.py      Sesión simulada completa: lanzador → grabación → pipeline
+│   ├── test_thermal.py             [por escribir] Módulo térmico con matriz sintética
+│   └── vectors/frames.json         Tramas de referencia compartidas con el firmware
+│
+├── data/                           Datos crudos por sesión (local, fuera de Git)
+│   └── <sujeto>_<fecha>/           emg_raw.csv, frames.csv, events.csv, session.json,
+│                                   angulo.csv, thermal/, processed/
+├── results/                        Figuras y tablas finales del informe
+└── cloud/ y web/                   Dashboard público (opcional, Fase 6)
 ```
 
 ### Raíz y configuración
