@@ -17,8 +17,8 @@ acquisition:
   frame_header_bytes: 20
   crc: CRC16/CCITT-FALSE
   channels:
-    - { id: ch1, muscle: VL, gpio: 1 }   # PENDIENTE confirmar en placa
-    - { id: ch2, muscle: BF, gpio: 2 }
+    - { id: ch1, muscle: VL, gpio: 3 }   # ADC1_CH2
+    - { id: ch2, muscle: BF, gpio: 4 }   # ADC1_CH3
 
 adc:
   unit: ADC1
