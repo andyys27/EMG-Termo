@@ -1,0 +1,95 @@
+# Protocolo BI2005-EMG-Equipo 4 (versión del 12 nov 2026), ajustado según Plan de trabajo v5.1.
+# Valores marcados PENDIENTE / PROPUESTA deben confirmarse en la Fase 0 (fecha límite 24 nov).
+# Después de la sesión piloto (25 nov) estos parámetros se congelan.
+
+protocol_version: "BI2005-EMG-E4-2026-11-12+v5.1"
+
+subjects:
+  n_max: 2                     # PENDIENTE (decisión 9): 1 o 2 integrantes del equipo
+  id_format: "S{nn:02d}"       # Código de sujeto; sin nombres
+
+muscles:
+  ch1: VL                      # Vasto lateral
+  ch2: BF                      # Bíceps femoral
+
+exercise:
+  type: partial_squat
+  target_knee_flexion_deg: 90  # Verificada con goniómetro
+  series: 1
+  reps_per_series: 5           # 15 s o 5 repeticiones (lo que ocurra primero)
+  metronome_bpm: 60
+  beats_per_rep: 3             # PROPUESTA: 5 reps × 3 s = 15 s
+  rep_duration_s: 3.0          # Derivado de beats_per_rep / bpm
+
+# Secuencia del protocolo (cambio posterior al plan v5.1). Cada etapa se marca
+# en events.csv con <EVENT>_START / <EVENT>_END.
+stages:
+  - { name: reposo,       event: REST,     duration_s: 15 }  # De pie, sin movimiento; línea base
+  - { name: mvc,          event: MVC,      duration_s: 15 }  # Contracción voluntaria máxima
+  - { name: descanso,     event: PAUSA,    duration_s: 15 }
+  - { name: sentadilla,   event: SERIE_1,  duration_s: 15, max_reps: 5 }
+  - { name: enfriamiento, event: RECOVERY, duration_s: 15 }
+
+timing:
+  total_recording_s: 75        # Suma de las etapas (sin sincronía ni capturas térmicas)
+
+sync:
+  method: sync_move            # 3 flexo-extensiones rápidas de rodilla
+  n_movements: 3
+  use_sync_pulse: false        # Decisión 10: desactivado (USE_SYNC_PULSE=0)
+
+phases:                        # PROPUESTA (decisión 2): fracción de la repetición
+  - { name: inicio,        start: 0.00, end: 0.33 }
+  - { name: pico,          start: 0.33, end: 0.67 }
+  - { name: recuperacion,  start: 0.67, end: 1.00 }
+
+segmentation_priority: [angle, metronome, emg_peaks]
+
+processing:
+  bandpass_hz: [20, 300]       # PROPUESTA (decisión 7)
+  highpass_hz: 20              # null = usar solo el pasa-altas analógico de 5 Hz
+  notch_hz: null               # El circuito ya tiene notch 60 Hz; digital opcional
+  rms_window_ms: 500
+  rms_overlap: 0.5
+  envelope_lowpass_hz: 3       # Protocolo: 2–5 Hz
+  mdf:
+    method: welch
+    band_hz: [20, 300]
+
+onset:                         # PROPUESTA (decisiones 4 y 6)
+  envelope_lowpass_hz: 10
+  baseline: rest               # Media + k·DE del reposo
+  k_sd: 3
+  min_duration_ms: 25
+  reference: rep_start         # Latencia desde el inicio del movimiento de cada repetición
+
+normalization:                 # PENDIENTE (decisión 1)
+  method: mean_valid_peaks     # mean_valid_peaks | max_rms | mvc; se guardan todas en reference.json
+  mvc:
+    stage: mvc
+    reference: max_rms         # RMS máximo (ventana de 500 ms) dentro de la etapa MVC
+    discard_edges_s: 1.0       # PROPUESTA: ignorar el arranque y el final de la contracción
+
+exclusion:                     # PROPUESTA (decisión 3): repetición inválida si…
+  saturation: true             # Hay muestras saturadas
+  max_gap_ms: 20               # Hay un hueco mayor
+  max_flexion_dev_deg: 15      # Flexión máxima a más de 15° de 90°
+  max_duration_dev_frac: 0.30  # Duración a más de 30 % de la mediana
+
+thermal:
+  # Tres momentos principales: antes, durante y después de la secuencia de etapas.
+  moments:
+    - { name: T0_PRE,    event: THERMAL_T0_PRE,    when: antes de REST_START }
+    - { name: T1_DURING, event: THERMAL_T1_DURING, when: durante la secuencia }   # PENDIENTE: etapa exacta
+    - { name: T2_POST,   event: THERMAL_T2_POST,   when: después de RECOVERY_END }
+  # Muestras intermedias: PENDIENTE confirmar si la H6 graba en continuo.
+  acquisition_mode: snapshots  # snapshots | continuous
+  continuous:
+    enabled: false             # true si la H6 graba secuencia radiométrica
+    frame_rate_hz: null        # PENDIENTE: según la H6
+    stage_stats: true          # Con video: estadísticos por ROI en cada etapa de `stages`
+  intermediate_snapshots: []   # Solo modo snapshots: lista de { stage, offset_s } si se toman capturas extra
+  views: [ANT, POS]
+  acclimatization_min: [10, 15]
+  baseline_repeat_captures: 2  # Dos capturas en reposo antes de T0 (incertidumbre)
+  max_capture_s: 30

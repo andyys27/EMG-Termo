@@ -1,0 +1,33 @@
+{
+  "_comment": "ROI térmicas por vista (Fotric H6). Coordenadas en píxeles de la matriz exportada (x, y; origen arriba-izquierda). PENDIENTE: definir sobre una imagen de muestra real; las mismas ROI se usan en T0, T1 y T2 (y en las muestras intermedias si las hay).",
+  "version": "0.1",
+  "image_size": { "width": null, "height": null },
+  "units": "px",
+  "emissivity": 0.98,
+  "moments": ["T0_PRE", "T1_DURING", "T2_POST"],
+  "stats": ["mean", "max", "std"],
+  "delta_reference": "T0_PRE",
+  "views": {
+    "ANT": {
+      "description": "Cara anterior del muslo (sobre el vasto lateral)",
+      "rois": [
+        { "name": "VL", "type": "polygon", "points": [] },
+        { "name": "rodilla", "type": "polygon", "points": [] },
+        { "name": "control", "type": "rect", "x": null, "y": null, "w": null, "h": null }
+      ]
+    },
+    "POS": {
+      "description": "Cara posterior del muslo (sobre el bíceps femoral)",
+      "rois": [
+        { "name": "BF", "type": "polygon", "points": [] },
+        { "name": "rodilla", "type": "polygon", "points": [] },
+        { "name": "control", "type": "rect", "x": null, "y": null, "w": null, "h": null }
+      ]
+    }
+  },
+  "exclude": {
+    "_comment": "Zonas a excluir (p. ej., electrodos) por vista",
+    "ANT": [],
+    "POS": []
+  }
+}

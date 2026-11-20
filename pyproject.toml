@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "emgthermo"
+version = "0.5.1"
+description = "Adquisición y análisis de EMG (VL, BF), ángulo de rodilla por video y termografía durante una sentadilla con peso corporal"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "BI2005-EMG Equipo 4" }]
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "pandas>=2.0",
+    "pyyaml>=6.0",
+    "matplotlib>=3.7",
+]
+
+[project.optional-dependencies]
+# Ángulo de rodilla desde video (tools/video_pose.py)
+video = [
+    "mediapipe>=0.10.14",
+    "opencv-python>=4.8",
+]
+# Monitor en vivo (realtime/live_plot.py)
+monitor = [
+    "pyqtgraph>=0.13",
+    "PyQt6>=6.5",
+]
+dev = [
+    "pytest>=7.4",
+]
+all = ["emgthermo[video,monitor,dev]"]
+
+[project.scripts]
+emg-session = "emgthermo.launcher.run_session:main"
+emg-live = "emgthermo.realtime.live_plot:main"
+emg-video-pose = "emgthermo.tools.video_pose:main"
+emg-phase1 = "emgthermo.tools.phase1_characterize:main"
+
+[tool.setuptools]
+package-dir = { "" = "host" }
+
+[tool.setuptools.packages.find]
+where = ["host"]
+include = ["emgthermo*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["host"]
+addopts = "-ra"

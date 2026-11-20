@@ -1,0 +1,25 @@
+# Umbrales de control de calidad (validation/qc.py).
+# PROVISIONALES: se ajustan con la Fase 1 (ruido y 60 Hz medidos) y se congelan antes del piloto.
+
+verdict_levels: [aprobada, advertencias, rechazada]
+
+thresholds:
+  packet_loss_pct:
+    warn: 0.5
+    max: 1.0
+  max_gap_ms: 20
+  saturation_frac:
+    warn: 0.0005
+    max: 0.001                 # 0.1 %
+  rest_noise_uv_rms:
+    warn: 8
+    max: 10                    # Referido a la entrada, 20–300 Hz
+  line_60hz_power_frac:
+    warn: 0.10
+    max: 0.20
+  fs_effective_tol_frac: 0.001 # ±0.1 % de 2000 Hz
+  clock_rtt_us_max: 20000      # PING/PONG; se usa el de menor RTT
+  overrun_frames_max: 0
+
+flags_reject: [OVERRUN]        # Banderas que vuelven inválida la trama
+flags_warn: [SAT, FLAT, DC_OOR, BATT_LOW, LINE]

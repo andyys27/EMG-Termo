@@ -1,0 +1,68 @@
+# Equipos del sistema. Debe coincidir con firmware/emg_node/include/config.h.
+# v_per_count y gain_total se llenan con las mediciones de la Fase 1 (hardware/notes_calibration.md).
+
+node:
+  board: esp32-s3-supermini
+  host: null                   # IP del nodo (monitor serie); también --host en el lanzador
+  tcp_port: 5006               # Control: HELLO, PING, ARM, START, STOP, STATUS
+  udp_port: 5005               # Datos (abrir en el firewall de Windows)
+  mirror_port: 5105            # Copia de tramas para el monitor en vivo
+
+acquisition:
+  fs_hz: 2000                  # Por canal
+  n_channels: 2
+  os_factor: 8                 # Plan B: 4 si el ADC no alcanza 32 kHz
+  adc_total_hz: 32000
+  samples_per_frame: 20        # 10 ms por trama, 102 bytes
+  frame_header_bytes: 20
+  crc: CRC16/CCITT-FALSE
+  channels:
+    - { id: ch1, muscle: VL, gpio: 1 }   # PENDIENTE confirmar en placa
+    - { id: ch2, muscle: BF, gpio: 2 }
+
+adc:
+  unit: ADC1
+  bits: 12
+  attenuation: ADC_ATTEN_DB_12
+  full_scale_v: 3.1            # Aproximado; verificar con la prueba 5 de la Fase 1
+  max_count_raw: 4095
+  max_count_sum: 32760         # 4095 × os_factor
+  offset_v: 1.65
+  offset_count_raw_expected: 2000
+  saturation:
+    low_count_raw: 20
+    high_count_raw: 4075
+  v_per_count: null            # PENDIENTE (Fase 1): voltios por cuenta de una conversión
+
+analog:
+  instrumentation_amp: AD620
+  isolation_amp: ISO124
+  gain_nominal: 107
+  gain_total: null             # PENDIENTE (Fase 1, barrido en frecuencia)
+  highpass_hz: 5               # 2.º orden
+  lowpass_hz: 312              # 2.º orden; banda declarada pendiente (decisión 8)
+  notch:
+    freq_hz: 60
+    type: twin-T 2.º orden
+  power: 4 × 9 V (baterías)
+  drl: true
+
+video:
+  device: null                 # PENDIENTE (decisión 4): modelo de celular
+  fps: 120                     # Plan B: 60
+  view: sagital
+  side: right
+  distance_m: [2, 3]
+  pose_model: pose_landmarker_full.task
+  landmarks:
+    right: { hip: 24, knee: 26, ankle: 28 }
+    left:  { hip: 23, knee: 25, ankle: 27 }
+  frame_stride: 2
+  max_angle_error_deg: 5       # Validación con goniómetro (0°, 45°, 90°)
+
+thermal_camera:
+  model: Fotric H6
+  control: manual              # Software propio; se asocia por hora (events.csv)
+  emissivity: 0.98             # Confirmar con documentación de la H6
+  export_format: null          # PENDIENTE: CSV de matriz o imagen radiométrica
+  room_temp_c: [20, 24]
