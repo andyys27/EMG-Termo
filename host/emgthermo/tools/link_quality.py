@@ -1,13 +1,12 @@
-#!/usr/bin/env python3
 """link_quality.py — Calidad del enlace Wi-Fi y del ADC del nodo EMG.
 
 Uso:
   # Grabar 30 s y analizar (opcionalmente fijando la potencia TX del nodo)
-  python tools/link_quality.py run --ip 192.168.1.50 --secs 30 --txpower 19.5 --save tx_alta.npz
-  python tools/link_quality.py run --ip 192.168.1.50 --secs 30 --txpower 2    --save tx_baja.npz
+  python -m emgthermo.tools.link_quality run --ip 192.168.1.50 --secs 30 --txpower 19.5 --save tx_alta.npz
+  python -m emgthermo.tools.link_quality run --ip 192.168.1.50 --secs 30 --txpower 2    --save tx_baja.npz
 
   # Comparar dos grabaciones (p. ej. entrada en corto con TX alta vs. baja)
-  python tools/link_quality.py compare tx_alta.npz tx_baja.npz
+  python -m emgthermo.tools.link_quality compare tx_alta.npz tx_baja.npz
 
 Reporta:
   Enlace: tramas perdidas (huecos en seq), duplicadas/desordenadas, CRC malos, jitter de llegada,
@@ -21,54 +20,17 @@ import argparse
 import json
 import select
 import socket
-import struct
 import sys
 import time
 
 import numpy as np
 
-MAGIC = 0x4D45
-HDR = struct.Struct("<HBBBBHIQ")  # magic, ver, n_ch, n_samples, os, flags, seq, t_us
-FLAG_NAMES = {
-    0: "SAT_CH1", 1: "SAT_CH2", 2: "FLAT_CH1", 3: "FLAT_CH2", 4: "DC_OOR_CH1", 5: "DC_OOR_CH2",
-    6: "LINE_CH1", 7: "LINE_CH2", 8: "BATT_LOW", 9: "OVERRUN", 10: "SYNC_PULSE", 11: "SEND_RETRY",
-}
-
-
-def crc16_ccitt_false(data: bytes) -> int:
-    crc = 0xFFFF
-    for b in data:
-        crc ^= b << 8
-        for _ in range(8):
-            crc = ((crc << 1) ^ 0x1021) & 0xFFFF if crc & 0x8000 else (crc << 1) & 0xFFFF
-    return crc
-
-
-class Control:
-    """Canal TCP de comandos (una línea por comando y por respuesta)."""
-
-    def __init__(self, ip, port):
-        self.s = socket.create_connection((ip, port), timeout=5)
-        self.buf = b""
-
-    def cmd(self, line, expect):
-        self.s.sendall((line + "\n").encode())
-        t_end = time.time() + 5
-        while time.time() < t_end:
-            while b"\n" in self.buf:
-                ln, self.buf = self.buf.split(b"\n", 1)
-                txt = ln.decode(errors="replace").strip()
-                if txt.startswith("ERR"):
-                    raise RuntimeError(f"{line}: {txt}")
-                if txt.startswith(expect):
-                    rest = txt[len(expect):].strip()
-                    return json.loads(rest) if rest.startswith("{") else rest
-            self.buf += self.s.recv(4096)
-        raise TimeoutError(f"sin respuesta a {line}")
+from ..core.node import NodeControl
+from ..core.protocol import FLAG_NAMES, FrameError, decode_frame
 
 
 def record(args):
-    ctl = Control(args.ip, args.tcp_port)
+    ctl = NodeControl(args.ip, args.tcp_port)
     hello = ctl.cmd("HELLO", "OK HELLO")
     print(f"Nodo: {hello['fw']} {hello['ver']}  fs={hello['fs_hz']} Hz  n_ch={hello['n_ch']}  os={hello['os']}")
     if args.txpower is not None:
@@ -117,21 +79,20 @@ def decode(frames, arrivals):
     bad_crc = bad_hdr = 0
     n_ch = n_s = os_f = None
     for pkt, ta in zip(frames, arrivals):
-        if len(pkt) < HDR.size + 2:
-            bad_hdr += 1
+        try:
+            fr = decode_frame(pkt)
+        except FrameError as e:
+            if e.kind == "crc":
+                bad_crc += 1
+            else:
+                bad_hdr += 1
             continue
-        magic, ver, n_ch, n_s, os_f, fl, seq, t_us = HDR.unpack_from(pkt)
-        if magic != MAGIC or len(pkt) != HDR.size + 2 * n_ch * n_s + 2:
-            bad_hdr += 1
-            continue
-        if crc16_ccitt_false(pkt[:-2]) != struct.unpack_from("<H", pkt, len(pkt) - 2)[0]:
-            bad_crc += 1
-            continue
-        seqs.append(seq)
-        tus.append(t_us)
-        flags.append(fl)
+        n_ch, n_s, os_f = fr.n_ch, fr.n_samples, fr.os_factor
+        seqs.append(fr.seq)
+        tus.append(fr.t_us)
+        flags.append(fr.flags)
         arr.append(ta)
-        data.append(np.frombuffer(pkt, "<u2", n_ch * n_s, HDR.size).reshape(n_s, n_ch))
+        data.append(fr.samples)
     return dict(seq=np.array(seqs, np.int64), t_us=np.array(tus, np.int64), flags=np.array(flags, np.int64),
                 arrival=np.array(arr), data=np.array(data), bad_crc=bad_crc, bad_hdr=bad_hdr,
                 n_ch=n_ch, n_s=n_s, os=os_f)
