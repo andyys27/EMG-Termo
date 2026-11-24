@@ -80,6 +80,8 @@ static inline size_t frame_encode(uint8_t* out, uint32_t seq, uint64_t t_us, uin
 //   ARM              → OK ARM {"n":..,"mean":[..],"std":[..],"min":[..],"max":[..],"flags":..}   (en sumas)
 //   START [puerto]   → OK START {"port":..,"t_us":..}
 //   STOP             → OK STOP {"frames":..,"send_errors":..,"overruns":..,"lost_conv":..,"t_start_us":..,"t_stop_us":..}
-//   STATUS           → OK STATUS {"streaming":..,"frames":..,"rssi":..,"heap":..,"uptime_us":..}
+//   STATUS           → OK STATUS {"streaming":..,"frames":..,"seq_next":..,"send_errors":..,"overruns":..,
+//                                 "lost_conv":..,"bad_conv":..,"rssi":..,"tx_power_qdbm":..,"heap":..,"uptime_us":..}
+//   TXPOWER <dBm>    → OK TXPOWER {"qdbm":..}   (potencia Wi-Fi en cuartos de dBm)
 //   SYNC_PULSE       → OK SYNC_PULSE {"t_us":..}   (solo con USE_SYNC_PULSE=1)
 //   otro             → ERR <motivo>

@@ -2,7 +2,7 @@
 # v_per_count y gain_total se llenan con las mediciones de la Fase 1 (hardware/notes_calibration.md).
 
 node:
-  board: esp32-s3-supermini
+  board: esp32-c3-supermini
   host: null                   # IP del nodo (monitor serie); también --host en el lanzador
   tcp_port: 5006               # Control: HELLO, PING, ARM, START, STOP, STATUS
   udp_port: 5005               # Datos (abrir en el firewall de Windows)
@@ -17,8 +17,8 @@ acquisition:
   frame_header_bytes: 20
   crc: CRC16/CCITT-FALSE
   channels:
-    - { id: ch1, muscle: VL, gpio: 3 }   # ADC1_CH2
-    - { id: ch2, muscle: BF, gpio: 4 }   # ADC1_CH3
+    - { id: ch1, muscle: VL, gpio: 3 }   # ADC1_CH3
+    - { id: ch2, muscle: BF, gpio: 4 }   # ADC1_CH4
 
 adc:
   unit: ADC1

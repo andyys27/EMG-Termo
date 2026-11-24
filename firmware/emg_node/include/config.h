@@ -8,7 +8,8 @@
 #define PROTOCOL_VERSION 1
 
 // Canales
-// GPIO3 = ADC1_CH2 (VL), GPIO4 = ADC1_CH3 (BF).
+// ESP32-C3: GPIO3 = ADC1_CH3 (VL), GPIO4 = ADC1_CH4 (BF). Solo ADC1: el ADC2 de la C3
+// no soporta modo continuo y además lo usa el Wi-Fi.
 #define N_CH 2
 static const int CH_GPIO[N_CH] = {3, 4};
 
@@ -41,7 +42,7 @@ static const int CH_GPIO[N_CH] = {3, 4};
 
 // Opcionales
 #define USE_SYNC_PULSE 0            // Decisión 10: desactivado
-#define SYNC_PULSE_GPIO 5           // GPIO4 ahora es el canal BF
+#define SYNC_PULSE_GPIO 5           // GPIO3/GPIO4 son los canales EMG
 
 // Monitor serie: imprime una muestra del ADC cada SERIAL_ADC_PERIOD_MS con hora ISO 8601.
 // 0 = desactivado. No imprimir las 2000 muestras/s: el puerto serie no da abasto.
@@ -54,10 +55,10 @@ static const int CH_GPIO[N_CH] = {3, 4};
 #define BATT_SENSE 0                // Sin medición de batería (BATT_LOW queda reservado)
 
 // Buffers del ADC
-#define ADC_BYTES_PER_CONV 4                                   // SOC_ADC_DIGI_RESULT_BYTES (S3)
+#define ADC_BYTES_PER_CONV 4                                   // SOC_ADC_DIGI_RESULT_BYTES (C3)
 #define ADC_CONV_FRAME_BYTES (SAMPLES_PER_FRAME * N_CH * OS_FACTOR * ADC_BYTES_PER_CONV) // 1280 B
 #define ADC_POOL_BYTES (ADC_CONV_FRAME_BYTES * 32)             // ~320 ms de margen
 
-static_assert(ADC_TOTAL_HZ >= 611 && ADC_TOTAL_HZ <= 83333, "ADC fuera del rango de la S3");
+static_assert(ADC_TOTAL_HZ >= 611 && ADC_TOTAL_HZ <= 83333, "ADC fuera del rango de la C3");
 static_assert((uint32_t)SUM_MAX <= 0xFFFF, "La suma no cabe en uint16");
 static_assert(VAL_BLOCK_SAMPLES % SAMPLES_PER_FRAME == 0, "Bloque debe ser múltiplo de la trama");

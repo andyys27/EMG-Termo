@@ -1,0 +1,25 @@
+# Entornos y cachés de Python
+.venv/
+venv/
+.env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Artefactos de compilación/empaquetado
+build/
+dist/
+
+# Datos y resultados generados (según la estructura del README)
+data/
+results/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

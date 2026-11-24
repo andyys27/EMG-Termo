@@ -1,10 +1,10 @@
-// main.cpp — Nodo EMG ESP32-S3: ADC1+DMA a 2000 Hz x 2 canales, validación, tramas UDP,
+// main.cpp — Nodo EMG ESP32-C3: ADC1+DMA a 2000 Hz x 2 canales, validación, tramas UDP,
 // control por TCP. El nodo NO filtra la señal; solo la marca (ver validator.h).
 //
 // Tareas:
-//   acq_task (núcleo 1, prioridad alta): lee el ADC, valida, arma tramas y las envía por UDP.
-//   loop()   (núcleo 1, Arduino):        atiende un cliente TCP con comandos de texto.
-//   Wi-Fi y lwIP corren en el núcleo 0.
+//   acq_task (prioridad alta): lee el ADC, valida, arma tramas y las envía por UDP.
+//   loop()   (Arduino):                  atiende un cliente TCP con comandos de texto.
+//   La C3 tiene un solo núcleo: todo comparte el núcleo 0 y se reparte por prioridad.
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
@@ -199,7 +199,11 @@ static void cmd_stop() {
 
 static void cmd_status() {
   reply("OK STATUS {\"streaming\":" + String(streaming ? "true" : "false") + ",\"frames\":" + String(stats.frames) +
-        ",\"overruns\":" + String(stats.overruns) + ",\"rssi\":" + String(WiFi.RSSI()) +
+        ",\"seq_next\":" + String(seq) + ",\"send_errors\":" + String(stats.send_errors) +
+        ",\"overruns\":" + String(stats.overruns) +
+        ",\"lost_conv\":" + String(adc.lost_conversions() - stats.lost_conv_at_start) +
+        ",\"bad_conv\":" + String(adc.bad_conversions()) + ",\"rssi\":" + String(WiFi.RSSI()) +
+        ",\"tx_power_qdbm\":" + String((int)WiFi.getTxPower()) +
         ",\"heap\":" + String(ESP.getFreeHeap()) + ",\"uptime_us\":" + String((uint64_t)esp_timer_get_time()) + "}");
 }
 
@@ -212,6 +216,23 @@ static void cmd_sync_pulse() {
 #else
   reply("ERR SYNC_PULSE desactivado (USE_SYNC_PULSE=0)");
 #endif
+}
+
+// TXPOWER <dBm>: potencia de transmisión Wi-Fi, para la prueba A/B de ruido en el ADC.
+// Valores válidos del driver: 2, 5, 7, 8.5, 11, 13, 15, 17, 18.5, 19, 19.5 dBm.
+static void cmd_txpower(const String& arg) {
+  static const struct { float dbm; wifi_power_t p; } T[] = {
+    {2, WIFI_POWER_2dBm}, {5, WIFI_POWER_5dBm}, {7, WIFI_POWER_7dBm}, {8.5f, WIFI_POWER_8_5dBm},
+    {11, WIFI_POWER_11dBm}, {13, WIFI_POWER_13dBm}, {15, WIFI_POWER_15dBm}, {17, WIFI_POWER_17dBm},
+    {18.5f, WIFI_POWER_18_5dBm}, {19, WIFI_POWER_19dBm}, {19.5f, WIFI_POWER_19_5dBm}};
+  const float want = arg.toFloat();
+  for (auto& e : T)
+    if (fabsf(e.dbm - want) < 0.01f) {
+      bool ok = WiFi.setTxPower(e.p);
+      reply(ok ? "OK TXPOWER {\"qdbm\":" + String((int)WiFi.getTxPower()) + "}" : String("ERR TXPOWER rechazado"));
+      return;
+    }
+  reply("ERR TXPOWER valores: 2 5 7 8.5 11 13 15 17 18.5 19 19.5");
 }
 
 static void handle_line(String line) {
@@ -231,6 +252,7 @@ static void handle_line(String line) {
   else if (cmd == "STOP") cmd_stop();
   else if (cmd == "STATUS") cmd_status();
   else if (cmd == "SYNC_PULSE") cmd_sync_pulse();
+  else if (cmd == "TXPOWER") cmd_txpower(arg);
   else reply("ERR comando desconocido: " + cmd);
 }
 
@@ -309,7 +331,7 @@ void setup() {
     Serial.printf("ERROR ADC: %s. Revisar pines/frecuencia (plan B: OS_FACTOR=4).\n", esp_err_to_name(err));
     for (;;) delay(1000);
   }
-  xTaskCreatePinnedToCore(acq_task, "acq", 8192, nullptr, configMAX_PRIORITIES - 2, nullptr, 1);
+  xTaskCreatePinnedToCore(acq_task, "acq", 8192, nullptr, configMAX_PRIORITIES - 2, nullptr, 0);  // C3: único núcleo
 
   wifi_connect();
   configTzTime(TZ_INFO, NTP_SERVER_1, NTP_SERVER_2);   // Hora real para el monitor serie
