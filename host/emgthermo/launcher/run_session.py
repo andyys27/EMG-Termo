@@ -4,7 +4,7 @@
   python -m emgthermo.launcher.run_session --sim --auto --time-scale 0.1 --subject TEST
 
   # Sesión real
-  python -m emgthermo.launcher.run_session --host <IP> --subject S01 [--no-thermal] [--mirror-port 5105]
+  python -m emgthermo.launcher.run_session --host <IP> --subject S01 --no-thermal --mirror-port 5105
 
 Salida en data/<sujeto>_<fecha>/: emg_raw.csv, frames.csv, events.csv, session.json.
 En modo interactivo se escribe un comando y Enter (escribir `h` para ver la lista).

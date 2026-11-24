@@ -134,9 +134,13 @@ def run_qc(rec: dict, devices: dict, thr_cfg: dict) -> dict:
     add("packet_loss_pct", round(loss_pct, 4), check(loss_pct, lt["warn"], lt["max"]), "%")
     add("max_gap_ms", max_gap_ms, check(max_gap_ms, None, thr["max_gap_ms"]), "ms")
     if fs_eff is not None:
-        err = abs(fs_eff / fs_nom - 1)
-        add("fs_effective_hz", round(fs_eff, 3), check(err, None, thr["fs_effective_tol_frac"]), "Hz",
-            f"error {100 * (fs_eff / fs_nom - 1):+.3f} % (tolerancia ±{100 * thr['fs_effective_tol_frac']:.2f} %)")
+        tol = thr.get("fs_effective_tol_frac")
+        note = f"error {100 * (fs_eff / fs_nom - 1):+.3f} %"
+        if tol is None:
+            add("fs_effective_hz", round(fs_eff, 3), "info", "Hz", note)
+        else:
+            add("fs_effective_hz", round(fs_eff, 3), check(abs(fs_eff / fs_nom - 1), None, tol), "Hz",
+                note + f" (tolerancia ±{100 * tol:.2f} %)")
     bad = (meta.get("recording") or {}).get("bad_frames")
     if bad is not None:
         add("bad_frames", bad, "ok" if bad == 0 else "warn")

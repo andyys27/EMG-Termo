@@ -4,12 +4,12 @@ import json
 import numpy as np
 import pytest
 
-from host.emgthermo.core.clock_sync import ClockModel, SyncPoint, measure
-from host.emgthermo.core.node import NodeControl
-from host.emgthermo.core.protocol import FrameError, crc16_ccitt_false, decode_frame, encode_frame
-from host.emgthermo.launcher import run_session
-from host.emgthermo.tools import capture_raw
-from host.emgthermo.tools.simulate_device import SimNode
+from emgthermo.core.clock_sync import ClockModel, SyncPoint, measure
+from emgthermo.core.node import NodeControl
+from emgthermo.core.protocol import FrameError, crc16_ccitt_false, decode_frame, encode_frame
+from emgthermo.launcher import run_session
+from emgthermo.tools import capture_raw
+from emgthermo.tools.simulate_device import SimNode
 
 
 def test_crc_reference():

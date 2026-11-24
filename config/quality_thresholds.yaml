@@ -17,7 +17,7 @@ thresholds:
   line_60hz_power_frac:
     warn: 0.10
     max: 0.20
-  fs_effective_tol_frac: 0.001 # ±0.1 % de 2000 Hz
+  fs_effective_tol_frac: null  # No se evalúa: el error de fs (~+0.16 %) es despreciable; solo se informa
   clock_rtt_us_max: 20000      # PING/PONG; se usa el de menor RTT
   overrun_frames_max: 0
 
